@@ -35,6 +35,72 @@ Used to control access to data in the database
 | `GRANT`  | Give user access privileges |
 | `REVOKE` | Take away user privileges   |
 
+### 🚀 Why TRUNCATE is Faster Than DELETE
+**✔ 1. TRUNCATE does not delete row-by-row**
+
+**DELETE:**
+
+- Removes each row one at a time
+- Logs each row removal
+- Fires triggers
+- Checks constraints
+- Generates undo/rollback entries
+
+**TRUNCATE:**
+
+- Removes the whole data segment at once
+- Just deallocates pages/extents
+- Minimal logging
+- No row-level operations
+- truncate reset identity column
+
+_👉 It’s like dropping the table contents instantly._
+
+**✔ 2. TRUNCATE is minimally logged**
+
+**DELETE**
+
+- Logs: every row deleted
+- Slow when millions of rows
+
+**TRUNCATE**
+
+- Logs only: deallocation of pages
+- Constant time (O(1)), not dependent on number of rows
+
+Example:
+```sql
+TRUNCATE TABLE Orders;
+-- reset identity
+
+DELETE FROM Orders;
+-- does not reset identity
+```
+_Resetting identity avoids extra overhead for the next inserts._
+
+**Example Speed Difference**
+| Operation            | Time          |
+| -------------------- | ------------- |
+| DELETE FROM logs;    | ❌ 3–5 minutes |
+| TRUNCATE TABLE logs; | 🚀 < 1 second |
+
+**Important Differences**
+
+| Feature               | DELETE          | TRUNCATE                         |
+| --------------------- | --------------- | -------------------------------- |
+| Row-by-row delete     | ✔ Yes           | ❌ No                             |
+| Logs each row         | ✔ Yes           | ❌ Minimal                        |
+| Triggers fire         | ✔ Yes           | ❌ No                             |
+| Respects WHERE clause | ✔ Yes           | ❌ No WHERE allowed               |
+| Can rollback          | ✔ Yes           | ✔ Usually yes (depends on DB)    |
+| Resets identity       | ❌ No            | ✔ Yes                            |
+| Needs table locks     | ❌ No (row/page) | ✔ Yes (schema modification lock) |
+
+**Summary (Easy to Remember)**
+
+**DELETE** = Slow, row-by-row, logs everything
+**TRUNCATE** = Fast, wipes whole table instantly, minimal logging
+**DROP** = Removes table entirely
 
 ### How to write MERGE and UPSERT Query
 ```SQL
@@ -72,8 +138,8 @@ INSERT INTO Users (Name) VALUES ('Alice');
 SELECT @@IDENTITY;  -- Returns the ID generated for Alice
 ```
 
-⚠️ Caution:
-It can return the identity value from a trigger if one was fired, which can lead to unexpected results.
+**⚠️ Caution:**
+_It can return the identity value from a trigger if one was fired, which can lead to unexpected results._
 
 ### 🔹 SCOPE_IDENTITY()
 Recommended alternative to **@@IDENTITY**
@@ -97,7 +163,7 @@ Returns the last identity value generated for a specific table, regardless of se
 SELECT IDENT_CURRENT('Users');
 ```
 
-⚠️ Not limited to your session — use carefully in multi-user environments.
+_⚠️ Not limited to your session — use carefully in multi-user environments._
 
 
 ### Summary
@@ -128,12 +194,12 @@ In SQL, a **PIVOT** is used to transform rows into columns, allowing you to **re
 ### What is Window function in SQL
 A window function performs a calculation across a set of rows that are related to the current row, without collapsing the result into a single row (unlike aggregate functions with GROUP BY).
 
-🔍 Key Features:
+**🔍 Key Features:**
 It works on a "window" (subset) of rows related to the current row.
 
 The result is returned for every row, unlike GROUP BY which reduces rows.
 
-Always used with the OVER() clause.
+Always used with the **OVER()** clause.
 
 **Common Window Functions**
 
@@ -381,17 +447,56 @@ FROM Employees
 WHERE salary < (
     SELECT MAX(salary) FROM Employees
 );
+
+-- using rank
+
+SELECT salary (
+    select salary,
+    RANK() OVER(ORDER BY salary DESC) as rnk
+    FROM Employee
+) t
+WHERE rnk = 2;
+
+
+-- using dense rank
+
+SELECT salary (
+    SELECT salary,
+    DENSE_RANK() OVER(ORDER BY salary DESC) AS dr
+    FROM Employee
+) t
+WHERE dr = 2
+
+
 ```
+### Which One Should You Use?
+| Goal                            | Best Function              | Why                             |
+| ------------------------------- | -------------------------- | ------------------------------- |
+| Find the **2nd highest salary** | **DENSE_RANK** or **RANK** | They treat duplicates correctly |
+| Remove duplicates               | **ROW_NUMBER**             | Picks a single unique row       |
+| Pagination                      | **ROW_NUMBER**             | Deterministic per-row ID        |
+| Rank records with ties allowed  | **RANK**                   | Allows gaps                     |
+| Rank records without gaps       | **DENSE_RANK**             | Compact ranking                 |
+
 
 ### 🔹 2. Employees with higher salary than their department average
 
 ```SQL
+-- subquery
+SELECT e.* 
+FROM Employee e
+WHERE e.salary > (
+    SELECT AVG(salary) 
+    FROM Employee
+    WHERE department_id = e.department_id
+);
+
 SELECT e.* FROM Employees e
 JOIN (
-    SELECT id, AVG(salary) AS AvgSalary
+    SELECT department_id, AVG(salary) AS AvgSalary
     FROM Employees
-    GROUP BY id
-) d ON e.department_id = d.id
+    GROUP BY department_id
+) d ON e.department_id = d.department_id
 WHERE e.salary > d.AvgSalary;
 ```
 ### 🔹 3. Find duplicate records
