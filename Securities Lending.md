@@ -138,9 +138,58 @@ In Securities Lending:
 
 * **Credit Risk**: Counterparty fails.
 
+* **Example:**
+Definition:
+Risk that the borrower (hedge fund, broker, market maker, etc.) does not return the shares or cannot pay when required.
+
+* **✔ Hedge fund collapses**
+
+Hedge fund borrows 200,000 shares of TSLA to short.
+
+The hedge fund fails financially (like Archegos).
+
+They can’t return the shares or deliver collateral.
+
+The lender (e.g., Morgan Stanley, Goldman) now has credit exposure.
+
 * **Market Risk**: Value of loaned security or collateral fluctuates.
 
-* **Operational Risk**: Fails, mismatches, bad data.
+* **Definition:**
+Risk that market changes affect the value of the loaned security or the collateral.
+
+**✔ Example 1 — Collateral value drops**
+
+Borrower posts $10M cash collateral for loaned shares worth $9.7M (102% rule).
+Market falls → collateral value drops.
+**Now collateral < loan amount → exposure.**
+
+Lender must issue a **margin call.**
+
+**✔ Example 2 — Value of borrowed stock spikes**
+
+Borrower shorted 100k shares of NVDA at $500.
+Stock jumps to $580.
+**Borrower owes more now → credit exposure to lender increases.**
+
+If borrower cannot meet the margin → risk to lender.
+
+* **Operational Risk**: Fails, mismatches, bad data, Human or Technical Errors
+
+**✔ Example 1 — Trade mismatch (common in agent lenders)**
+
+Agent lender sends “Loan 100,000 AAPL shares”
+Prime broker books “Loan 10,000 AAPL shares”
+Mismatch → reconciliation break → potential fail.
+
+**✔ Example 2 — Incorrect availability data**
+
+Inventory system incorrectly shows:
+
+“50,000 GME shares available”
+
+Desk books a locate for 50k shares
+But REAL availability was 0
+**→ Massive fail-to-deliver at settlement.**
 
 Firms use **real-time risk engines**, margin calls, and **limits** to control this.
 
@@ -212,20 +261,6 @@ Firms use **real-time risk engines**, margin calls, and **limits** to control th
 * **Rebate Rate / Borrow Fee**: Economic terms of the loan.
 
 * **Corporate Actions**: Splits, dividends, etc., that impact loans.
-
----
-
-Let me know if you'd like a visual mind map of all these relationships or if you want this formatted into a PDF or deck for internal training or onboarding.
-
-4o
-
-##### **You said:**
-
-define the lifecycle methods and position, tracking
-
-###### **ChatGPT said:**
-
-Here’s a **deep dive into lifecycle methods and position tracking** in the **Securities Lending** domain, tailored for a **lead engineer at a financial technology firm**.
 
 ---
 
