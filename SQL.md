@@ -359,9 +359,9 @@ CREATE TABLE ##GlobalTempTable
 | **Transaction log**   | Logged like regular tables      | Minimal logging                     |
 | **Indexes**           | Can add indexes explicitly      | Limited (no explicit non-clustered) |
 | **Statistics**        | Has statistics (optimizer uses) | No statistics                       |
-| **Performance**       | Better for large data           | Better for small datasets           |
+| **Performance**       | **Better for large data**       | **Better for small datasets**       |
 | **Persistence**       | Exists in `tempdb`              | In memory, also tempdb backed       |
-| **ALTER allowed**     | Yes                             | ❌ No `ALTER` on structure           |
+| **ALTER allowed**     | Yes                             | ❌ No `ALTER` on structure          |
 | **Used in recursion** | Yes                             | Not allowed in recursive CTE        |
 | **Parallelism**       | Supported                       | Not supported                       |
 
@@ -435,7 +435,177 @@ Then update **StudentCourses:**
 | --------- | ------ |
 | 1         | Math   |
 
+### Query-Level Optimization (Micro-Level)
 
+These techniques make individual queries faster.
+
+✅ a. Use Proper Indexing
+
+Indexes reduce scan time by allowing fast lookups.
+
+Common types:
+
+- B-tree → for equality and range (WHERE age > 30)
+- Hash → for equality only
+- Composite index → for multi-column filters
+- Covering index → query satisfied entirely by index
+
+CREATE INDEX idx_emp_dept_salary
+ON employees(dept_id, salary);
+
+
+Tip:
+→ Don’t over-index (hurts write performance).
+→ Analyze queries with EXPLAIN or EXPLAIN ANALYZE.
+
+✅ b. Avoid SELECT *
+
+Fetch only what’s needed:
+SELECT id, name FROM employees;
+
+
+→ Reduces I/O and network overhead.
+
+✅ c. Use Joins Wisely
+
+Prefer INNER JOIN over OUTER JOIN when possible.
+**Ensure joined columns are indexed.**
+**Avoid joining large tables unnecessarily.**
+
+✅ d. Optimize WHERE clauses
+
+Use indexed columns in filters.
+
+Avoid applying functions on indexed columns:
+❌ WHERE YEAR(created_at) = 2025
+✅ WHERE created_at BETWEEN '2025-01-01' AND '2025-12-31'
+
+✅ e. Use Batching for Inserts / Updates
+
+Instead of multiple single inserts:
+
+INSERT INTO orders (id, amount)
+VALUES (1, 100), (2, 200), (3, 300);
+
+✅ f. Use Query Caching
+
+Many RDBMS support query cache (or application-level cache like Redis).
+
+Reduces repeated query execution cost.
+
+### Schema and Data Design Optimization
+✅ a. Normalize (but not over-normalize)
+
+Normalization removes redundancy → smaller data → faster updates.
+
+But over-normalization → too many joins → slower queries.
+
+Balance: often go up to 3NF or BCNF, then selectively denormalize for performance.
+
+✅ b. Partitioning (Sharding/Horizontal Partitioning)
+
+Split a large table into smaller pieces based on a key.
+
+CREATE TABLE orders_2025 PARTITION OF orders
+FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+
+
+✅ Benefits:
+
+Smaller indexes per partition
+Easier maintenance and archiving
+Faster queries with partition pruning
+
+✅ c. Vertical Partitioning
+
+**Split columns into multiple tables when not always needed:**
+users_core(id, name, email)
+users_profile(user_id, bio, preferences)
+
+
+✅ Keeps hot data in memory more easily.
+
+✅ d. Denormalization (for read-heavy systems)
+
+Duplicate small amounts of data to avoid expensive joins.
+
+Example:
+Instead of joining employees with departments on every query, store dept_name in employees directly (if it changes rarely).
+
+### System-Level Scaling (Macro-Level)
+✅ a. Read-Write Splitting
+
+Use replicas for reads (read scalability).
+Writes go to primary node.
+
+🧩 Example:
+
+Primary DB → handles INSERT/UPDATE/DELETE
+Read Replicas → handle SELECT queries
+
+
+Frameworks or ORMs (like Hibernate, Spring Data) can route queries accordingly.
+
+✅ b. Connection Pooling
+Avoid creating new DB connections for every query.
+Use HikariCP, C3P0, or built-in Spring Boot pools.
+Maintain a small pool (10–50 connections depending on load).
+
+✅ c. Caching Layers
+
+In-memory cache (Redis, Memcached) for frequent queries.
+Application cache for small reference data (like currency codes, lookup tables).
+Materialized Views for precomputed aggregates.
+
+✅ d. Load Balancing Across DB Nodes
+
+Distribute read traffic among replicas.
+Some databases (like PostgreSQL + PgBouncer, MySQL Router) handle this automatically.
+
+✅ e. Archiving and Data Lifecycle
+
+Move old data to cold storage (cheaper & smaller active tables).
+Improves performance of active queries.
+
+✅ f. Use Proper Hardware and Configuration
+
+Enough memory for buffer pool (so most queries hit RAM, not disk).
+Tune DB parameters like:
+innodb_buffer_pool_size (MySQL)
+work_mem, shared_buffers (PostgreSQL)
+
+### Monitoring and Profiling
+
+Use tools like:
+
+EXPLAIN, EXPLAIN ANALYZE → see execution plan
+pg_stat_statements (PostgreSQL) → top slow queries
+slow_query_log (MySQL)
+APM tools (Datadog, New Relic, Prometheus + Grafana)
+
+### Scaling Beyond a Single DB
+
+If a single relational DB hits its limit:
+
+Sharding → distribute rows across multiple databases
+
+Federation / Data Virtualization → multiple sources appear as one logical DB
+
+Hybrid models → use NoSQL for high-volume or unstructured parts
+
+💼 Example — End-to-End Optimization Case
+Problem:
+
+Slow query fetching customer orders.
+
+Fix:
+
+Add composite index on (customer_id, order_date)
+Archive old data to orders_archive
+Use Redis for frequently viewed orders
+Add read replica for analytics queries
+Rewrite query to use WHERE order_date > NOW() - INTERVAL '30 DAYS'
+Result → latency reduced from 2s → 80ms
 
 ### ADVANCED SQL QUERY 
 
@@ -520,4 +690,89 @@ FROM Employees
 SELECT id+1 AS missing
 FROM Invoice
 WHERE id + 1 NOT IN (SELECT id from Invoice)
+```
+
+### SQL GROUP BY Basics
+
+**GROUP BY** is used to aggregate rows based on one or more columns.
+
+Example:
+```sql
+SELECT department, COUNT(*) as employee_count
+FROM employees
+GROUP BY department;
+```
+
+Here we group rows by department.
+
+COUNT(*) gives the number of employees in each department.
+
+✅ Works fine because all selected columns are either in the GROUP BY or aggregated.
+
+**Why you cannot select other columns freely**
+
+Suppose you try:
+```sql
+SELECT department, name
+FROM employees
+GROUP BY department;
+```
+
+❌ This will fail in standard SQL (some databases allow it with extensions).
+
+**Reason:**
+
+When you group by department, multiple rows are combined into one group per department.
+
+Which name should SQL pick?
+
+There may be many names in that department.
+SQL cannot guess which one you want.
+SQL requires: Every column in SELECT must be either:
+In the GROUP BY clause, or
+Aggregated (using COUNT, SUM, MIN, MAX, AVG, etc.)
+
+### Using ROW_NUMBER() (Recommended, ANSI SQL)
+```sql
+SELECT *
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (ORDER BY id) AS rn
+    FROM employees
+) t
+WHERE rn % 2 = 1;  -- Odd rows
+```
+- % 2 = 1 → Odd rows
+- % 2 = 0 → Even rows
+
+Explanation:
+
+- ROW_NUMBER() assigns a sequential number based on ORDER BY id.
+- You can now filter odd or even row numbers.
+
+### Duplicate employees by name and their frequencies
+```sql
+SELECT name, count(*) AS freq
+FROM Employee
+GROUP BY name
+WHERE count(*) > 1;
+```
+- using cursor to return all cols
+```sql
+WITH dup AS (
+    SELECT name
+    FROM Employee
+    GROUP BY name
+    HAVING count(*) > 1
+)
+SELECT e.* 
+FROM Employee e
+JOIN dup d ON d.name = e.name
+```
+
+### Display all employee whose name is exactly 4 chars
+```sql
+SELECT name
+FROM Employee
+WHERE name LIKE '____';
 ```

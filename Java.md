@@ -948,3 +948,45 @@ Thread.startVirtualThread(() ->
 - Replace thread pools
 - Non-blocking IO
 - Modern microservices
+
+### do more than one task using single thread
+```java
+ExecutorService singleThread = Executors.newSingleThreadExecutor();
+
+CompletableFuture.runAsync(() -> System.out.println("Task 1"), singleThread)
+                 .thenRunAsync(() -> System.out.println("Task 2"), singleThread)
+                 .thenRunAsync(() -> System.out.println("Task 3"), singleThread);
+
+singleThread.shutdown();
+```
+
+### Using ScheduledExecutorService for sequential or delayed tasks
+```java
+ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+scheduler.schedule(() -> System.out.println("Task 1 executed"), 1, TimeUnit.SECONDS);
+scheduler.schedule(() -> System.out.println("Task 2 executed"), 2, TimeUnit.SECONDS);
+
+scheduler.shutdown();
+```
+Only one thread, tasks execute one by one based on scheduled delay.
+
+### Using Runnable inside a loop
+```java
+Thread singleThread = new Thread(() -> {
+    Runnable[] tasks = {
+        () -> System.out.println("Task 1"),
+        () -> System.out.println("Task 2"),
+        () -> System.out.println("Task 3")
+    };
+
+    for (Runnable task : tasks) {
+        task.run(); // executed sequentially
+    }
+});
+
+singleThread.start();
+```
+
+- Simple sequential execution in one thread.
+- No concurrency, but multiple tasks share the same thread.
