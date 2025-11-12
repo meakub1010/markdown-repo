@@ -836,3 +836,115 @@ A happens-before relationship is a guarantee that memory writes by one action ar
 
 **How to tune ThreadPoolExecutor?**
 Choose corePoolSize, maxPoolSize, queue type, and rejection policy based on task CPU/IO boundness, use metrics and scraping.
+
+### Ways to create thread in java
+
+**1. Extend the Thread class (Traditional way)**
+```java
+class MyThread extends Thread {
+    @Override
+    public void run() {
+        System.out.println("Thread running: " + Thread.currentThread().getName());
+    }
+}
+
+public class Demo {
+    public static void main(String[] args) {
+        new MyThread().start();
+    }
+}
+```
+✔ When to use:
+Rarely — prefer using Runnable or executor services.
+
+**2. Implement Runnable (Most common traditional way)**
+
+```java
+class MyRunnable implements Runnable {
+    @Override
+    public void run() {
+        System.out.println("Running in: " + Thread.currentThread().getName());
+    }
+}
+
+public class Demo {
+    public static void main(String[] args) {
+        Thread t = new Thread(new MyRunnable());
+        t.start();
+    }
+}
+
+```
+
+✔ When to use:
+- When task is independent of the thread’s lifecycle.
+- Classic use for concurrency.
+
+**3. Anonymous Runnable (short form)**
+
+```java
+Thread t = new Thread(() -> System.out.println("Hello from lambda"));
+t.start();
+```
+✔ When to use:
+- Small inline tasks
+- Modern Java code
+
+**4. Using Callable + FutureTask (when you need a return value)**
+```java
+Callable<Integer> task = () -> 42;
+
+FutureTask<Integer> ft = new FutureTask<>(task);
+Thread t = new Thread(ft);
+t.start();
+
+System.out.println(ft.get());  // prints 42
+
+```
+✔ When to use:
+
+- Need return value
+- Need checked exceptions
+- Before Java 8 CompletableFuture
+
+**5. Using ExecutorService (modern, recommended)**
+```java
+ExecutorService executor = Executors.newFixedThreadPool(3);
+
+executor.submit(() -> {
+    System.out.println("Running in thread pool");
+});
+
+executor.shutdown();
+
+```
+✔ When to use:
+
+- Server apps
+- Thread pooling
+- Scalable systems
+- You want to avoid creating threads manually
+
+**6. Using ScheduledExecutorService (for scheduled tasks)**
+```java
+ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+scheduler.schedule(() -> System.out.println("Task after 2 sec"), 2, TimeUnit.SECONDS);
+```
+✔ When to use:
+- Repeated scheduling
+- Cron-like functionality
+
+**7. Using Virtual Threads (Java 21+, Loom)**
+```java
+Thread.startVirtualThread(() ->
+    System.out.println("Running in a virtual thread")
+);
+
+```
+✔ When to use:
+
+- High-concurrency apps
+- Replace thread pools
+- Non-blocking IO
+- Modern microservices
