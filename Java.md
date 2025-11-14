@@ -719,13 +719,11 @@ In Java, a BlockingQueue is a **thread-safe queue** that supports blocking opera
 Producer methods:
 
 put(E e) → waits if the queue is full
-
 offer(E e, timeout) → waits for specified time if full
 
 Consumer methods:
 
 take() → waits if the queue is empty
-
 poll(timeout) → waits for specified time if empty
 
 So you don’t write your own wait/notify, Java handles all of it safely.
