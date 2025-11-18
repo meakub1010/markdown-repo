@@ -835,8 +835,10 @@ function useCancellableFetch(url: string, deps: any[] = []) {
 ## With this how can we handle multiple concurrent requests
 If you need multiple API calls for different widgets but want to cancel all outdated ones on user action:
 - use AbortControllerRef as array
-    ```ts
-    const abortControllers = useRef<AbortController[]>([]);```
+
+```ts
+    const abortControllers = useRef<AbortController[]>([]);
+```
 - for each request push that ref into controllerRef array
 - later based on user action iterate over the refs array and cancel them
 - also during return we can iterate and abort all request
@@ -1029,17 +1031,17 @@ Webpack can cache too, but configuration is heavier and slower to warm up.
 
 4. Output Strategy
 
-Webpack: Full bundle, monolithic.
+**Webpack: Full bundle, monolithic.**
 
-Vite: Uses lazy loading of modules and on-demand compilation during development.
+**Vite: Uses lazy loading of modules and on-demand compilation during development.**
 
-Why is esbuild itself so fast?
+**Why is esbuild itself so fast?**
 
-Written in Go (compiled, not interpreted like JS).
+- Written in Go (compiled, not interpreted like JS).
 
-Uses parallelism for file processing.
+- Uses parallelism for file processing.
 
-Avoids unnecessary AST transformations compared to Babel/Webpack loaders.
+- Avoids unnecessary AST transformations compared to Babel/Webpack loaders.
 
 Optimized for minimal I/O and memory usage.
 
@@ -1073,3 +1075,57 @@ Counter.jsx → uses useState
 - Browser requests /Counter.jsx → served on-demand.
 
 - Change Counter.jsx → only that file is transpiled and re-sent.
+
+
+## REDUX 
+
+**Explain Redux Toolkit’s createSlice.**
+It combines:
+
+- Reducer
+- Actions
+- Initial state
+```ts
+const counterSlice = createSlice({
+  name: 'counter',
+  initialState: {value: 0},
+  reducers: {
+    increment: (state) => {value: state.value + 1},
+    decrement: (state) => {value: state.value - 1}
+  }
+});
+
+export const {increment, decrement } = counterSlice.actions;
+export default counterSlice.reducer;
+```
+
+```tsx
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
+```
+
+```tsx
+import { useSelector, useDispatch } from 'react-redux';
+import { increment, decrement, reset } from './counterSlice';
+
+function App() {
+  const count = useSelector((state) => state.counter.value);
+  const dispatch = useDispatch();
+
+  return (
+    <div style={{ textAlign: "center", marginTop: "40px" }}>
+      <h1>Redux Counter</h1>
+      <h2>{count}</h2>
+
+      <button onClick={() => dispatch(increment())}>+</button>
+      <button onClick={() => dispatch(decrement())}>-</button>
+      <button onClick={() => dispatch(reset())}>Reset</button>
+    </div>
+  );
+}
+
+export default App;
+```

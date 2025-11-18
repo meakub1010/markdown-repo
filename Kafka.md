@@ -497,3 +497,385 @@ Message throughput
 Broker disk usage
 
 Producer send failures and retries
+
+# 🧩 Kafka Interview Questions and Answers (Mid-Level Engineer)
+
+## 1️⃣ What is Apache Kafka and why is it used?
+Apache Kafka is a **distributed event streaming platform** designed to handle **high-throughput, fault-tolerant, real-time data streams**.  
+It’s used for:
+- Decoupling systems via event-driven architecture  
+- Real-time analytics  
+- Log aggregation  
+- Data integration between microservices  
+
+**Example use cases:** Stock price streaming, transaction logs, fraud detection, clickstream analytics.
+
+---
+
+## 2️⃣ What are Topics, Partitions, and Offsets in Kafka?
+- **Topic:** A category/feed name where messages are published.  
+- **Partition:** A topic is split into partitions for scalability and parallel processing.  
+- **Offset:** A sequential ID assigned to each message in a partition.
+
+**Example:**  
+If `transactions` topic has 3 partitions, Kafka can handle 3 parallel consumers for better throughput.
+
+---
+
+## 3️⃣ How does Kafka ensure message ordering?
+Kafka **preserves message order within a partition**, not across partitions.  
+If ordering is required, ensure all related messages have the same **partition key** (e.g., `customerId`).
+
+---
+
+## 4️⃣ What is a Consumer Group?
+A **consumer group** is a set of consumers sharing the same group ID.  
+Each message in a partition is consumed by **only one** consumer in the group.  
+Used for **load balancing** and **fault tolerance**.
+
+---
+
+## 5️⃣ How does Kafka achieve fault tolerance?
+Kafka replicates each partition across multiple brokers.  
+- One **leader** handles reads/writes.  
+- Others are **followers** (replicas).  
+If a leader fails, a follower takes over automatically.
+
+```properties
+replication.factor=3
+min.insync.replicas=2
+```
+
+---
+
+## 6️⃣ What is ISR (In-Sync Replica)?
+ISR = **Leader + replicas fully caught up** with the leader.  
+Kafka only commits messages when written to all in-sync replicas.
+
+---
+
+## 7️⃣ How does a producer decide which partition to send data to?
+- If a **key** is provided → Kafka uses a hash of the key.  
+- If no key → Round-robin assignment.
+
+**Example:** All transactions for `customer123` go to the same partition.
+
+---
+
+## 8️⃣ What are delivery guarantees in Kafka?
+| Delivery Type | Description |
+|----------------|-------------|
+| **At most once** | Messages may be lost but never redelivered. |
+| **At least once** | Messages are never lost but can be redelivered. |
+| **Exactly once** | Each message processed once even after retries (requires idempotent producer + transactions). |
+
+---
+
+## 9️⃣ What are Idempotent Producers in Kafka?
+Enable **idempotence** to avoid duplicate messages during retries.
+```properties
+enable.idempotence=true
+```
+
+---
+
+## 🔟 What is the difference between `acks=0`, `acks=1`, and `acks=all`?
+| Setting | Guarantee | Description |
+|----------|------------|-------------|
+| `acks=0` | Fastest | Producer doesn’t wait for acknowledgment (risk of loss). |
+| `acks=1` | Medium | Waits for leader acknowledgment only. |
+| `acks=all` | Safest | Waits for all in-sync replicas acknowledgment. |
+
+---
+
+## 11️⃣ How does Kafka ensure durability?
+- Messages are persisted to **disk** immediately (commit log).  
+- Data is **replicated** to other brokers.  
+- `min.insync.replicas` ensures quorum before acknowledging writes.
+
+---
+
+## 12️⃣ What is message compaction?
+Kafka retains **only the latest message per key**.  
+Used for maintaining **latest state** (e.g., user profile updates).
+
+```properties
+cleanup.policy=compact
+```
+
+---
+
+## 13️⃣ What happens when a consumer crashes?
+Kafka triggers a **rebalance** and assigns that consumer’s partitions to others in the same group.
+
+---
+
+## 14️⃣ What causes frequent rebalances?
+- Consumers joining/leaving frequently  
+- Session timeouts too short (`session.timeout.ms`)  
+- Slow message processing  
+
+**Fix:** Increase timeout or use **cooperative rebalancing**.
+
+---
+
+## 15️⃣ How does Kafka handle backpressure?
+If consumers are slow → offsets lag behind.  
+Fixes:
+- Add more consumers  
+- Use `pause()` / `resume()` APIs  
+- Tune `max.poll.interval.ms` and `fetch.min.bytes`
+
+---
+
+## 16️⃣ What is Kafka Connect?
+A framework to **stream data between Kafka and external systems** (DBs, S3, Elasticsearch, etc.).  
+✅ No code needed, scalable, fault-tolerant.
+
+---
+
+## 17️⃣ What are Kafka Streams?
+A **Java library for stream processing** directly on Kafka topics.
+
+```java
+builder.stream("transactions")
+       .filter((k, v) -> v.amount > 1000)
+       .to("high_value_txns");
+```
+
+---
+
+## 18️⃣ How do you handle large messages?
+- Use compression (`compression.type=gzip`)  
+- Use tiered storage (Kafka 3.x+)  
+- Split into smaller chunks before producing
+
+---
+
+## 19️⃣ How do you secure Kafka?
+1. **Authentication** – SASL/Kerberos/SSL  
+2. **Encryption** – SSL/TLS  
+3. **Authorization** – ACLs on topics
+
+---
+
+## 20️⃣ What are key Kafka metrics to monitor?
+- Consumer Lag  
+- Under-replicated Partitions  
+- Broker Disk Usage  
+- Request Latency  
+
+Use **Prometheus + Grafana** or **Confluent Control Center**.
+
+---
+
+## ⚡ Bonus: Scenario
+**Q:** Consumer reprocesses old messages after restart — why?  
+**A:** Offsets weren’t committed.  
+Fix: `enable.auto.commit=true` or call `consumer.commitSync()` manually.
+
+---
+
+# ⚙️ Kafka Cluster Design — 10 Brokers Setup
+
+## 1️⃣ Scenario
+You have **10 Kafka brokers**. Need to decide:
+- Topic partitions  
+- Replication factor  
+- Load balancing
+
+---
+
+## 2️⃣ Tradeoffs
+| Factor | More Partitions | Fewer Partitions |
+|---------|----------------|------------------|
+| ✅ Parallelism | Higher throughput | Lower throughput |
+| ⚠️ Overhead | More open files | Easier ops |
+| 💾 Disk Load | Spread across brokers | Concentrated |
+
+> Each partition ≈ 1 consumer thread. Avoid >10,000 partitions/broker.
+
+---
+
+## 3️⃣ Replication Factor (RF)
+Recommended:
+```properties
+default.replication.factor=3
+min.insync.replicas=2
+```
+
+- 1 leader + 2 followers  
+- Handles 1 broker failure  
+- Balances durability vs cost
+
+---
+
+## 4️⃣ Number of Partitions per Topic
+| Throughput    | Suggested Partitions  | Notes |
+|-------------  |---------------------- |-------|
+| Low           | 3–6                   | Simple workloads |
+| Medium        | 6–12                  | Normal production |
+| High          | 20–50+                | Real-time analytics |
+| Extreme       | 100–1000              | Needs tuning |
+
+> For 10 brokers: choose multiples of 10 (e.g., `num.partitions=20`)
+
+---
+
+## 5️⃣ Load Balancing
+Kafka auto-distributes partitions & replicas evenly:
+```properties
+auto.leader.rebalance.enable=true
+```
+
+Example: 20 partitions × RF=3 → 60 replicas → ~6 per broker.
+
+---
+
+## 6️⃣ Min In-Sync Replicas (ISR)
+```properties
+min.insync.replicas=2
+acks=all
+```
+
+Ensures **2 replicas must acknowledge** before success.
+
+---
+
+## 7️⃣ Recommended Config
+```properties
+# Cluster-level
+default.replication.factor=3
+num.partitions=20
+min.insync.replicas=2
+
+# Producer
+acks=all
+enable.idempotence=true
+retries=3
+max.in.flight.requests.per.connection=1
+```
+
+------------------------------------
+
+## 8️⃣ Scaling Strategy
+If consumer lag increases:
+- Increase partitions → allows more consumer threads  
+- Keep partition count balanced with brokers  
+
+> Adding partitions later can break ordering guarantees.
+
+------------------------------------
+
+## ✅ 9️⃣ Summary
+| Parameter             | Recommended   | Reason |
+|---------------        |-------------  |---------------|
+| Brokers               |      10       |  Cluster size |
+| Partitions per topic  |      10–30    | Balanced load |
+| Replication factor    |      3        | Fault tolerance |
+| Min in-sync replicas  |      2        | Durability    |
+| acks                  | all           | Reliable delivery |
+| enable.idempotence    | true          | Avoid duplicates |
+
+---
+
+## 🧮 10️⃣ Quick Formula
+> **Partitions = (#Consumers × 2)**  
+> **Replication Factor = 3**  
+> **Total Partitions < 10,000 per broker**
+
+# ================================================================
+#                 Kafka Cluster with KRaft (No Zookeeper)
+# ================================================================
+
+                       ┌───────────────────────────────┐
+                       │       KRaft Controller Quorum  │
+                       │     (Metadata Management)      │
+                       ├───────────────────────────────┤
+                       │ Controller 1 (Leader)          │
+                       │ Controller 2 (Follower)        │
+                       │ Controller 3 (Follower)        │
+                       └───────────────────────────────┘
+
+# KRaft Responsibilities:
+#   • Stores cluster metadata
+#   • Tracks broker registrations & heartbeats
+#   • Manages partition leadership elections
+#   • No Zookeeper required
+
+=================================================================
+
+#                  Kafka Brokers + Partitions + Consumers
+=================================================================
+
+Broker 1  (Consumer C1)
+────────────────────────────────────────
+ Leader:     P0
+ Replicas:   P2, P6
+ Consumer:   C1 → P0
+────────────────────────────────────────
+
+Broker 2  (Consumer C2)
+────────────────────────────────────────
+ Leader:     P1
+ Replicas:   P3, P7
+ Consumer:   C2 → P1
+────────────────────────────────────────
+
+Broker 3  (Consumer C3)
+────────────────────────────────────────
+ Leader:     P2
+ Replicas:   P4, P8
+ Consumer:   C3 → P2
+────────────────────────────────────────
+
+Broker 4  (Consumer C4)
+────────────────────────────────────────
+ Leader:     P3
+ Replicas:   P5, P9
+ Consumer:   C4 → P3
+────────────────────────────────────────
+
+Broker 5  (Consumer C5)
+────────────────────────────────────────
+ Leader:     P4
+ Replicas:   P0, P8
+ Consumer:   C5 → P4
+────────────────────────────────────────
+
+Broker 6  (Consumer C6)
+────────────────────────────────────────
+ Leader:     P5
+ Replicas:   P1, P7
+ Consumer:   C6 → P5
+────────────────────────────────────────
+
+Broker 7  (Consumer C7)
+────────────────────────────────────────
+ Leader:     P6
+ Replicas:   P1, P4
+ Consumer:   C7 → P6
+────────────────────────────────────────
+
+Broker 8  (Consumer C8)
+────────────────────────────────────────
+ Leader:     P7
+ Replicas:   P2, P5
+ Consumer:   C8 → P7
+────────────────────────────────────────
+
+Broker 9  (Consumer C9)
+────────────────────────────────────────
+ Leader:     P8
+ Replicas:   P0, P9
+ Consumer:   C9 → P8
+────────────────────────────────────────
+
+Broker 10  (Consumer C10)
+────────────────────────────────────────
+ Leader:     P9
+ Replicas:   P3, P6
+ Consumer:   C10 → P9
+────────────────────────────────────────
+
+=================================================================

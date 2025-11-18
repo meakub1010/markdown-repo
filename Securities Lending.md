@@ -699,3 +699,274 @@ These systems work together to ensure the securities lending process is **secure
 
 Let me know if you'd like to see specific API examples for this integration or need more details on building this in your systems\!
 
+🟥 1. What is Delta?
+
+Answer:
+Delta measures how much the price of an option will change when the underlying asset moves by $1.
+
+Example:
+
+Delta = 0.5 → option increases $0.50 for a $1 increase in stock.
+
+Call Delta range: 0 to +1.
+
+Put Delta range: 0 to −1.
+
+Delta is also called the hedge ratio.
+
+🟥 2. What is Delta Trading?
+
+Answer:
+Delta Trading involves taking positions in the underlying asset to hedge or profit from the directional exposure created by derivatives like options.
+
+Traders look at:
+
+Delta (directional risk)
+
+Gamma (delta change rate)
+
+Vega (volatility exposure)
+
+Theta (time decay)
+
+Delta trading aims to keep exposure at a desired level (hedged, partially hedged, or directional).
+
+🟦 3. What is a Delta-Neutral Position?
+
+Answer:
+A delta-neutral position has overall delta close to 0, meaning the position is indifferent to small price movements of the underlying.
+
+Example:
+
+Buy a call (Δ = +0.5)
+
+Short 50 shares (Δ = –0.5 * 100)
+
+Net Δ = 0
+
+Used in market making and volatility strategies.
+
+🟧 4. What is Delta Hedging?
+
+Answer:
+Delta hedging means adjusting the position in the underlying asset so the net delta becomes zero or close to zero.
+
+Goal:
+Minimize exposure to movements in the underlying.
+
+Example:
+If a trader is long a call with delta +0.6, they can:
+➡ Short 60 shares → delta becomes 0.
+
+🟦 5. Why do we need to hedge delta continuously?
+
+Answer:
+Because delta changes as price changes (Gamma effect).
+So hedges decay quickly.
+
+Continuous hedging:
+
+Reduces PnL volatility
+
+Maintains risk neutrality
+
+Required in market making books
+
+🟨 6. What is Gamma and how does it relate to Delta Trading?
+
+Answer:
+Gamma measures how fast delta changes.
+
+High gamma → delta changes quickly → requires frequent hedging.
+
+Example:
+Near-expiry ATM options have very high gamma → very unstable delta → active delta hedging required.
+
+🟥 7. What is the PnL impact of delta exposure?
+
+Answer:
+PnL from delta =
+Δ × change in underlying price
+
+Example:
+Δ = +0.6
+Stock moves +$2
+PnL = 0.6 × 2 × 100 = $120
+
+🟫 8. What does a trader mean by “I’m long delta”?
+
+Answer:
+They make money when the underlying goes up.
+Delta > 0.
+
+Examples:
+
+Long stock (Δ = +1)
+
+Long calls (positive delta)
+
+Short puts (positive delta)
+
+🟩 9. What does “short delta” mean?
+
+Answer:
+They make money when the stock goes down.
+Delta < 0.
+
+Examples:
+
+Short stock (Δ = –1)
+
+Short calls (negative delta)
+
+Long puts (negative delta)
+
+🟥 10. How is Delta used in risk management?
+
+Risk managers monitor:
+
+Net delta per symbol
+
+Delta by trader/book
+
+Delta per sector
+
+Concentration limits
+
+Delta is often the largest component of a trader’s risk.
+
+🟦 11. How do options change portfolio delta?
+
+Long Call = positive delta
+
+Short Call = negative delta
+
+Long Put = negative delta
+
+Short Put = positive delta
+
+Portfolio delta =
+Sum of each option’s (contract size × delta).
+
+🟧 12. What is Delta-1 Trading?
+
+Answer:
+Delta-1 trading refers to products with delta ≈ 1, meaning they move almost exactly with the underlying:
+
+Examples:
+
+ETFs
+
+Forwards
+
+Swaps
+
+CFDs
+
+Total Return Swaps (TRS)
+
+They carry pure directional exposure with minimal optionality.
+
+🟫 13. What is Delta Decay?
+
+Answer:
+Delta changes due to:
+
+Time passing (Theta)
+
+Volatility changing (Vega)
+
+Price moving (Gamma)
+
+Delta decay refers to delta drifting away from neutral as time evolves → needs rebalancing.
+
+🟩 14. What is “rebalancing frequency” in delta hedging?
+
+More frequent hedging:
+
+Lower risk
+
+Lower variance
+
+Higher transaction costs
+
+Traders optimize hedging frequency for:
+
+Liquidity
+
+Volatility
+
+Cost constraints
+
+🟧 15. What is the PnL from Delta Hedging?
+
+PnL has two components:
+
+Directional PnL (from underlying movement)
+
+Gamma–Theta PnL (from hedging adjustments)
+
+Market makers rely heavily on Gamma–Theta PnL.
+
+🟩 16. What is Volatility Trading in relation to Delta hedging?
+
+Traders hedge delta to neutralize directional risk, so they are left exposed mainly to:
+
+Volatility (Vega risk)
+
+Time decay (Theta)
+
+Convexity (Gamma)
+
+This is the basis of vol trading strategies.
+
+🟦 17. What is Delta for Futures?
+
+Futures have a delta close to 1, but with adjustments for:
+
+Interest rates
+
+Dividend expectations
+
+Funding cost
+
+🟧 18. Practical interview question: Given a call with delta 0.4, how many shares do you need to hedge?
+
+Position: Long 10 call contracts
+Each contract = 100 shares
+Delta = +0.4
+
+Net delta:
+
+10 × 100 × 0.4 = +400
+
+
+To create delta-neutral:
+
+➡ Short 400 shares.
+
+🟩 19. Why do traders prefer delta-neutral portfolios?
+
+Benefits:
+
+Remove directional risk
+
+Allows pure volatility exposure
+
+Suitable for market making
+
+Easier risk forecasting
+
+🟫 20. What is Cross-Gamma and why does it matter?
+
+Cross-gamma: sensitivity of deltas of one asset to another asset.
+
+Important for:
+
+Index options
+
+Multi-asset books
+
+Basket options
+
+Correlation strategies
