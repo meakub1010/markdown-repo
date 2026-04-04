@@ -1,4 +1,4 @@
-**CLR** - runtime for .net framework that manages the execution of .net program
+**CLR** - runtime for .net framework that manages the execution of **old .net** program
 it provides 
 - memory management
 - security
@@ -17,6 +17,34 @@ it provides
 - ensures code written in one .net language can be used in another
 - specifies subset of common features that all .net languages(C#, VB.NET, F#) must support to ensure compatibility
 
+**.NET Runtime Architecture (High-Level)**
+
+Your C# Code (source)
+        ↓
+Roslyn Compiler creates IL + metadata
+        ↓
+      .NET Runtime
+    ┌────────────┐
+    │   Loader   │  Loads assemblies (.dlls)
+    │    JIT     │  Compiles IL → native code
+    │    GC      │  Manages memory automatically
+    │ Threading  │  Manages tasks, async/await
+    │   BCL      │  Base libraries (System.*)
+    └────────────┘
+        ↓
+_Machine Code executed on CPU_
+
+**CoreCLR**
+CLR = Common Language Runtime (old .NET Framework)
+CoreCLR = Runtime used in modern cross-platform .NET 6 / 7 / 8 / 9.
+Provides:
+
+- JIT compilation
+- GC
+- Type system
+- Assembly loading
+- Exceptions
+- Threading
 
 ### STACK vs HEAP memory
 - stack memory is faster in allocate and deallocate compared to HEAP
@@ -28,16 +56,17 @@ it provides
 
 ### STACK - Value Type:
 
-```
+```csharp
 int x = 5;
 int y = x; // copy of x is assigned to y
 
 y = 10; // x is still 5, because value is copied`
-
+```
 
 ### HEAP - Reference Type:
 
-`class Person { public string name; }
+````csharp
+class Person { public string name; }
 
 Person p1 = new Person { name = "Alice" };
 Person p2 = p1;
@@ -583,7 +612,7 @@ public class SugarCoffee : MilkCoffee
 ```
 
 **Code for Decorator**
-```C#
+```csharp
 public interface ICoffee
 {
     string GetDescription();
@@ -668,7 +697,7 @@ public class DecoratorInheritenceExample
 
 ### .NET Services
 
-## 1. Transient
+###region  1. Transient
 
 **What it is:** A new instance of the service is created every time it's requested from the DI container. This means if a service is injected into multiple places within a single request, each injection will get a fresh instance.
 
@@ -680,7 +709,8 @@ public class DecoratorInheritenceExample
 - **Multithreading:** Can be a good choice for multithreading operations as each thread gets its own instance, according to ByteHide.
 - **Considerations:** Overusing transient for heavy or expensive services can lead to performance degradation due to the frequent instantiation, notes codewithmukesh. 
 
-## 2. Scoped
+
+### 2. Scoped
 
 **What it is:** A new instance of the service is created once per client request (typically an HTTP request) and shared across all components that participate in that request. This instance is then disposed of when the request ends.
 
@@ -695,7 +725,7 @@ User-Specific Data: For services caching or managing user-specific data during a
 
 - **Considerations:** Scoped services should not be injected directly into Singleton services as this can lead to runtime errors or unexpected behavior because a singleton lives longer than a scope, according to codewithmukesh. 
 
-## 3. Singleton
+### 3. Singleton
 
 **What it is:** Only one instance of the service is created for the entire lifetime of the application, and this same instance is shared across all requests and consumers.
 
@@ -712,4 +742,286 @@ Configuration: Services providing configuration settings that are constant for t
 
 - **Considerations:** Since singleton services are shared across all threads, you must ensure they are thread-safe if they maintain any mutable state, notes Reddit. Avoid injecting Scoped or Transient services directly into a Singleton, as this can lead to issues due to the lifetime mismatch.
 
-### Best Practices
+
+### AzureDevOps
+
+```yml
+# azure-pipelines.yml
+
+trigger:
+  branches:
+    include:
+      - develop
+      - main
+
+pr:
+  branches:
+    include:
+      - develop
+      - main
+
+schedules:
+  - cron: "0 2 * * *"       # Daily at 2:00 AM UTC
+    displayName: Daily Build
+    branches:
+      include:
+        - develop
+        - main
+    always: true
+
+variables:
+  buildConfiguration: 'Release'
+  solution: '**/*.sln'
+  artifactName: 'drop'
+
+stages:
+
+# ----------------------------
+# Stage 1: Build
+# ----------------------------
+- stage: Build
+  displayName: 'Build .NET REST API'
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+      - task: UseDotNet@2
+        displayName: 'Install .NET SDK'
+        inputs:
+          packageType: 'sdk'
+          version: '7.x'    # adjust to your .NET version
+
+      - task: NuGetToolInstaller@1
+
+      - task: NuGetCommand@2
+        inputs:
+          restoreSolution: '$(solution)'
+
+      - task: VSBuild@1
+        inputs:
+          solution: '$(solution)'
+          configuration: '$(buildConfiguration)'
+
+      - task: VSTest@2
+        inputs:
+          platform: 'Any CPU'
+          configuration: '$(buildConfiguration)'
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: '$(artifactName)'
+          publishLocation: 'Container'
+
+# ----------------------------
+# Stage 2: Deploy to Dev
+# ----------------------------
+- stage: DeployDev
+  displayName: 'Deploy to Dev Environment'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'develop'))
+  jobs:
+  - deployment: DevDeployment
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '<YOUR-SERVICE-CONNECTION>'
+              appType: 'webApp'
+              appName: '<DEV-APP-NAME>'
+              package: '$(Pipeline.Workspace)/$(artifactName)/**/*.zip'
+
+# ----------------------------
+# Stage 3: Deploy to Prod
+# ----------------------------
+- stage: DeployProd
+  displayName: 'Deploy to Production Environment'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'main'))
+  approval:
+    approvals:
+      - name: 'Production Deployment Approval'
+        reviewers:
+          - '<your-email@domain.com>'
+  jobs:
+  - deployment: ProdDeployment
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '<YOUR-SERVICE-CONNECTION>'
+              appType: 'webApp'
+              appName: '<PROD-APP-NAME>'
+              package: '$(Pipeline.Workspace)/$(artifactName)/**/*.zip'
+
+```
+
+### Monitor .NET apps
+
+1️⃣ Built-in .NET / OS Tools
+A. Event Logs (Windows)
+
+Event Viewer → Logs unhandled exceptions, startup issues, crashes.
+
+Application Logs / System Logs
+
+B. Performance Counters
+
+Track CPU, memory, threads, GC activity.
+
+Examples: .NET CLR Memory, .NET CLR Exceptions, .NET CLR LocksAndThreads.
+
+Use PerfMon (Windows Performance Monitor).
+
+C. dotnet-counters
+
+Lightweight CLI tool to monitor performance counters in real time.
+
+Example:
+
+dotnet-counters monitor --process-id <PID>
+
+
+Metrics: CPU usage, GC stats, exception rates, thread pool usage.
+
+D. dotnet-trace
+
+Collect ETW (Event Tracing for Windows) / diagnostic traces for deeper profiling.
+
+Example:
+
+dotnet-trace collect --process-id <PID>
+
+
+Can analyze performance bottlenecks, high CPU, memory issues.
+
+E. dotnet-dump
+
+Take memory dump of a running process.
+
+Analyze with Visual Studio or WinDbg:
+
+dotnet-dump collect --process-id <PID>
+dotnet-dump analyze <dumpfile>
+
+
+Useful for memory leaks, deadlocks, and crashes.
+
+F. dotnet-gcdump
+
+Collect GC memory dumps of managed heap for memory analysis:
+
+dotnet-gcdump collect --process-id <PID>
+
+
+Inspect which objects are alive, memory growth patterns.
+
+2️⃣ Application Performance Monitoring (APM) Tools
+
+These are third-party or SaaS solutions for real-time monitoring in production:
+
+Tool	Features
+Application Insights (Azure)	Logs, metrics, exceptions, dependency tracking, live metrics
+New Relic	Full-stack monitoring, distributed tracing, performance analytics
+Datadog	APM + infrastructure monitoring + logs
+Dynatrace	Automatic code-level instrumentation
+Stackify Retrace	.NET performance + error tracking
+
+Pros:
+
+Easy to set up in production
+
+Track slow requests, exceptions, DB calls
+
+Correlate logs, traces, and metrics
+
+3️⃣ Logging Frameworks
+Structured Logging
+
+Serilog, NLog, log4net
+
+Logs errors, warnings, performance info
+
+Output: console, file, ElasticSearch, Seq, or cloud logging (Azure, AWS, GCP)
+
+Example with Serilog:
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log.txt")
+    .CreateLogger();
+
+Log.Information("App started");
+Log.Error(ex, "Something went wrong");
+
+
+Tip: Use correlation IDs for distributed systems to trace a request across services.
+
+4️⃣ Remote Debugging
+
+Visual Studio Remote Debugger
+
+Attach debugger to live server
+
+Step through code in production (with caution!)
+
+dotnet-monitor
+
+Cross-platform tool from Microsoft
+
+Exposes metrics, logs, dumps, traces over HTTP API
+
+Lightweight, great for containerized apps
+
+Example:
+
+dotnet tool install --global dotnet-monitor
+dotnet monitor collect
+
+5️⃣ Profiling Tools
+
+JetBrains dotTrace / dotMemory → CPU/memory profiling
+
+PerfView → Windows ETW profiling, GC analysis
+
+Visual Studio Diagnostic Tools → Attach to process for live CPU/memory profiling
+
+6️⃣ Cloud / Container Monitoring
+
+For modern Kubernetes / Docker deployments:
+
+Prometheus + Grafana → Metrics, dashboards
+
+OpenTelemetry → Distributed tracing, metrics, logs
+
+Azure Monitor / AWS CloudWatch / GCP Operations → Cloud-native monitoring
+
+7️⃣ Key Things to Monitor in .NET Apps
+Metric	Why Important
+CPU Usage	High CPU → performance bottleneck
+Memory / GC	Memory leaks, Gen2 growth, frequent GC
+Thread Pool / Tasks	Thread starvation, deadlocks
+Exceptions	Detect errors early, analyze trends
+HTTP Requests	Latency, failures, slow endpoints
+Dependencies	DB, HTTP calls, external services
+Startup / Shutdown	Crashes, misconfigurations
+8️⃣ Recommended Stack for Production
+
+Minimal / self-hosted approach:
+
+Serilog / NLog → Structured logs
+
+dotnet-monitor → Traces, counters, dumps
+
+Application Insights / Grafana → Metrics + dashboard
+
+PerfView / dotnet-trace → Deep performance investigation
+
+This gives a full picture of health, performance, and exceptions.
